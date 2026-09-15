@@ -141,34 +141,44 @@ const OperatorPanel = () => {
     <div className="max-w-5xl mx-auto space-y-6">
 
       {/* Counter Selection Header */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-white/10 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-white/10 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
         
-        <div className="relative z-10 space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-semibold text-blue-200 border border-white/15">
-            <Monitor className="w-3.5 h-3.5" />
-            <span>Terminal Petugas Loket</span>
+        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
+          {/* Left - Title */}
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-semibold text-blue-200 border border-white/15">
+              <Monitor className="w-3.5 h-3.5" />
+              <span>Terminal Petugas Loket</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold flex items-center gap-2.5 text-white tracking-tight">
+              Panel Operator
+            </h2>
+            <p className="text-blue-200 text-xs sm:text-sm">Pilih loket aktif tempat Anda bertugas.</p>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold flex items-center gap-2.5 text-white tracking-tight">
-            Panel Operator
-          </h2>
-          <p className="text-blue-200 text-xs sm:text-sm">Pilih loket aktif tempat Anda bertugas melayani pelanggan.</p>
-        </div>
 
-        <div className="w-full sm:w-auto min-w-[260px] relative z-10">
-          <select
-            className="w-full px-4 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl text-white font-semibold outline-none focus:ring-2 focus:ring-white/50 transition-all"
-            value={selectedCounterId}
-            onChange={(e) => setSelectedCounterId(e.target.value)}
-            style={{ colorScheme: 'dark' }}
-          >
-            <option value="" style={{ color: '#0f172a' }}>-- Pilih Loket Tugas --</option>
-            {counters.map((c) => (
-              <option key={c.id} value={c.id} style={{ color: '#0f172a' }}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          {/* Right - Loket Buttons */}
+          <div className="flex items-center gap-2 relative z-10">
+            {counters.map((c) => {
+              const isActive = String(selectedCounterId) === String(c.id);
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedCounterId(isActive ? '' : String(c.id))}
+                  className={`
+                    px-5 py-3 rounded-2xl font-bold text-sm transition-all duration-200 border
+                    ${isActive
+                      ? 'bg-white text-indigo-900 border-white shadow-lg shadow-white/20 scale-105'
+                      : 'bg-white/10 text-white/80 border-white/15 hover:bg-white/20 hover:text-white hover:border-white/30'
+                    }
+                  `}
+                  style={{ minWidth: '100px' }}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
