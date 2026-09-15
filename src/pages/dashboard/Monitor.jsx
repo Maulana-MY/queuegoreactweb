@@ -12,6 +12,7 @@ const Monitor = () => {
   const [lastCalled, setLastCalled] = useState(null);
   const intervalRef = useRef(null);
   const prevLastCalledIdRef = useRef(null);
+  const prevCalledAtRef = useRef(null);
 
   const fetchData = async () => {
     try {
@@ -36,9 +37,13 @@ const Monitor = () => {
         const latest = activeQueues[0];
         setLastCalled(latest);
 
-        // Auto-play voice if a new queue is called
-        if (prevLastCalledIdRef.current !== latest.id) {
+        // Auto-play voice if a new queue is called OR if called_at changed (recall)
+        const isNewQueue = prevLastCalledIdRef.current !== latest.id;
+        const isRecall = prevCalledAtRef.current !== latest.called_at;
+
+        if (isNewQueue || isRecall) {
           prevLastCalledIdRef.current = latest.id;
+          prevCalledAtRef.current = latest.called_at;
           const counterObj = countersData.find((c) => c.id === latest.counter_id);
           playQueueAnnouncement(
             latest.queue_number,

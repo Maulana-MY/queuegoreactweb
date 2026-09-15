@@ -36,7 +36,7 @@ const TakeQueue = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [cancelConfirmId, setCancelConfirmId] = useState(null);
   const intervalRef = useRef(null);
-  const announcedStatusRef = useRef(null);
+  const announcedCalledAtRef = useRef(null);
 
   // Check if user currently holds an active queue ticket
   const hasActiveTicket = activeTicket && ['waiting', 'calling', 'serving'].includes(activeTicket.status);
@@ -50,6 +50,10 @@ const TakeQueue = () => {
       try {
         const parsed = JSON.parse(saved);
         setActiveTicket(parsed);
+        // Restore the last announced called_at so we don't re-announce on page load
+        if (parsed.called_at) {
+          announcedCalledAtRef.current = parsed.called_at;
+        }
       } catch {
         localStorage.removeItem('queuego_active_ticket');
       }
@@ -66,14 +70,17 @@ const TakeQueue = () => {
     if (!activeTicket) return;
     const updated = queues.find((q) => q.id === activeTicket.id);
     if (updated) {
-      if (updated.status !== activeTicket.status) {
+      // Update local state if anything changed (status OR called_at)
+      if (updated.status !== activeTicket.status || updated.called_at !== activeTicket.called_at) {
         setActiveTicket(updated);
         localStorage.setItem('queuego_active_ticket', JSON.stringify(updated));
       }
 
-      // Voice notification ONLY on User screen when status becomes calling
-      if (updated.status === 'calling' && announcedStatusRef.current !== 'calling') {
-        announcedStatusRef.current = 'calling';
+      // Voice notification when status is 'calling' AND called_at changed
+      // This covers both first call AND recall (panggil ulang),
+      // because recall updates called_at even though status stays 'calling'
+      if (updated.status === 'calling' && updated.called_at && updated.called_at !== announcedCalledAtRef.current) {
+        announcedCalledAtRef.current = updated.called_at;
         const counterName = counters.find((c) => c.id === updated.counter_id)?.name || `Loket ${updated.counter_id}`;
         playQueueAnnouncement(updated.queue_number, updated.customer_name, counterName);
       }
@@ -101,7 +108,7 @@ const TakeQueue = () => {
   const clearActiveTicket = () => {
     setActiveTicket(null);
     localStorage.removeItem('queuego_active_ticket');
-    announcedStatusRef.current = null;
+    announcedCalledAtRef.current = null;
   };
 
   // ==========================================
@@ -135,7 +142,7 @@ const TakeQueue = () => {
       };
       setActiveTicket(ticketWithCounter);
       localStorage.setItem('queuego_active_ticket', JSON.stringify(ticketWithCounter));
-      announcedStatusRef.current = newQueue.status;
+      announcedCalledAtRef.current = newQueue.called_at || null;
 
       setIsModalOpen(true);
       setCustomerName('');
