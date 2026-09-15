@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import queueService from '../../api/queueService';
 import Card from '../../components/ui/Card';
-import { playQueueAnnouncement } from '../../utils/tts';
 import { Volume2, Monitor as MonitorIcon } from 'lucide-react';
 
-const AUTO_REFRESH_MS = 5000;
+const AUTO_REFRESH_MS = 2000;
 
 const Monitor = () => {
   const [counters, setCounters] = useState([]);
   const [queues, setQueues] = useState([]);
   const [lastCalled, setLastCalled] = useState(null);
   const intervalRef = useRef(null);
-  const prevLastCalledIdRef = useRef(null);
-  const prevCalledAtRef = useRef(null);
 
   const fetchData = async () => {
     try {
@@ -33,24 +30,7 @@ const Monitor = () => {
         activeQueues.sort(
           (a, b) => new Date(b.called_at || b.created_at) - new Date(a.called_at || a.created_at)
         );
-
-        const latest = activeQueues[0];
-        setLastCalled(latest);
-
-        // Auto-play voice if a new queue is called OR if called_at changed (recall)
-        const isNewQueue = prevLastCalledIdRef.current !== latest.id;
-        const isRecall = prevCalledAtRef.current !== latest.called_at;
-
-        if (isNewQueue || isRecall) {
-          prevLastCalledIdRef.current = latest.id;
-          prevCalledAtRef.current = latest.called_at;
-          const counterObj = countersData.find((c) => c.id === latest.counter_id);
-          playQueueAnnouncement(
-            latest.queue_number,
-            latest.customer_name,
-            counterObj?.name || `Loket ${latest.counter_id}`
-          );
-        }
+        setLastCalled(activeQueues[0]);
       }
     } catch (error) {
       console.error('Error fetching monitor data:', error);
@@ -62,16 +42,6 @@ const Monitor = () => {
     intervalRef.current = setInterval(fetchData, AUTO_REFRESH_MS);
     return () => clearInterval(intervalRef.current);
   }, []);
-
-  const handleSpeakCurrent = () => {
-    if (!lastCalled) return;
-    const counterObj = counters.find((c) => c.id === lastCalled.counter_id);
-    playQueueAnnouncement(
-      lastCalled.queue_number,
-      lastCalled.customer_name,
-      counterObj?.name || `Loket ${lastCalled.counter_id}`
-    );
-  };
 
   // Waiting stats
   const totalWaiting = queues.filter((q) => q.status === 'waiting').length;
@@ -86,15 +56,12 @@ const Monitor = () => {
         </div>
 
         <div className="relative z-10 flex flex-col items-center justify-center space-y-4">
-          <button
-            onClick={handleSpeakCurrent}
-            className="flex items-center space-x-3 bg-white/20 hover:bg-white/30 px-6 py-2 rounded-full backdrop-blur-sm transition-colors cursor-pointer"
-          >
+          <div className="flex items-center space-x-3 bg-white/20 px-6 py-2 rounded-full backdrop-blur-sm">
             <Volume2 className="animate-pulse" />
             <span className="text-xl font-medium tracking-wide uppercase">
-              Sedang Dipanggil (Klik Suara)
+              Sedang Dipanggil
             </span>
-          </button>
+          </div>
 
           <h1 className="text-8xl lg:text-[10rem] font-black tracking-tighter leading-none drop-shadow-lg">
             {lastCalled ? lastCalled.queue_number : '---'}
@@ -174,7 +141,7 @@ const Monitor = () => {
       {/* Auto-refresh indicator */}
       <div className="flex items-center justify-center gap-2 text-xs text-gray-400 pb-4">
         <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-        Live Monitor • Auto-refresh setiap 5 detik
+        Live Monitor • Auto-refresh setiap 2 detik
       </div>
     </div>
   );

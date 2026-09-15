@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Monitor, Ticket, Users, History, LogOut, Menu, X } from 'lucide-react';
+import QueueCallBanner from '../components/QueueCallBanner';
+import api from '../api/axios';
+import { playQueueAnnouncement } from '../utils/tts';
 
 const DashboardLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -10,6 +13,56 @@ const DashboardLayout = () => {
   const token = localStorage.getItem('token');
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
+
+  // Centralized Global Voice Announcement for User Sessions (Single Audio Controller)
+  useEffect(() => {
+    // 100% SILENT for operator role
+    if (user?.role === 'operator') return;
+
+    const checkGlobalQueueAnnouncement = async () => {
+      const saved = localStorage.getItem('queuego_active_ticket');
+      if (!saved) return;
+
+      try {
+        const parsed = JSON.parse(saved);
+        if (!['waiting', 'calling', 'serving'].includes(parsed.status)) return;
+
+        const res = await api.get('/api/queues/today');
+        const queues = res.data?.data || [];
+        const updated = queues.find((q) => q.id === parsed.id);
+
+        if (updated) {
+          // Sync active ticket state in localStorage
+          localStorage.setItem('queuego_active_ticket', JSON.stringify(updated));
+
+          // Announce voice ONLY ONCE per operator call/recall action
+          if (updated.status === 'calling' && updated.called_at) {
+            const announcementKey = `queuego_announced_${updated.id}`;
+            const lastAnnounced = localStorage.getItem(announcementKey);
+
+            if (lastAnnounced !== updated.called_at) {
+              // Mark as announced so tab switching or waiting never repeats the voice
+              localStorage.setItem(announcementKey, updated.called_at);
+
+              const countersRes = await api.get('/api/counters');
+              const counters = countersRes.data?.data || [];
+              const counterObj = counters.find((c) => c.id === updated.counter_id);
+              const counterName = counterObj?.name || `Loket ${updated.counter_id}`;
+
+              console.log('📢 Single Central Voice Controller Announcing:', updated.queue_number, counterName);
+              playQueueAnnouncement(updated.queue_number, updated.customer_name, counterName);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error in central queue voice controller:', err);
+      }
+    };
+
+    checkGlobalQueueAnnouncement();
+    const interval = setInterval(checkGlobalQueueAnnouncement, 2000);
+    return () => clearInterval(interval);
+  }, [user?.role]);
 
   if (!token) {
     return <Navigate to="/login" replace />;
@@ -146,6 +199,9 @@ const DashboardLayout = () => {
           </div>
         </div>
       </nav>
+
+      {/* Global Queue Call Banner Notification */}
+      <QueueCallBanner />
 
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">

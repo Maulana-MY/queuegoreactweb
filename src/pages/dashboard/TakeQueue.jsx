@@ -5,7 +5,6 @@ import Button from '../../components/ui/Button';
 import TextInput from '../../components/ui/TextInput';
 import StatusBadge from '../../components/ui/StatusBadge';
 import Modal from '../../components/ui/Modal';
-import { playQueueAnnouncement } from '../../utils/tts';
 import { 
   Ticket, 
   Clock, 
@@ -24,7 +23,7 @@ import {
   UserCheck
 } from 'lucide-react';
 
-const AUTO_REFRESH_MS = 4000;
+const AUTO_REFRESH_MS = 2000;
 
 const TakeQueue = () => {
   const [counters, setCounters] = useState([]);
@@ -36,7 +35,6 @@ const TakeQueue = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [cancelConfirmId, setCancelConfirmId] = useState(null);
   const intervalRef = useRef(null);
-  const announcedCalledAtRef = useRef(null);
 
   // Check if user currently holds an active queue ticket
   const hasActiveTicket = activeTicket && ['waiting', 'calling', 'serving'].includes(activeTicket.status);
@@ -50,10 +48,6 @@ const TakeQueue = () => {
       try {
         const parsed = JSON.parse(saved);
         setActiveTicket(parsed);
-        // Restore the last announced called_at so we don't re-announce on page load
-        if (parsed.called_at) {
-          announcedCalledAtRef.current = parsed.called_at;
-        }
       } catch {
         localStorage.removeItem('queuego_active_ticket');
       }
@@ -75,17 +69,8 @@ const TakeQueue = () => {
         setActiveTicket(updated);
         localStorage.setItem('queuego_active_ticket', JSON.stringify(updated));
       }
-
-      // Voice notification when status is 'calling' AND called_at changed
-      // This covers both first call AND recall (panggil ulang),
-      // because recall updates called_at even though status stays 'calling'
-      if (updated.status === 'calling' && updated.called_at && updated.called_at !== announcedCalledAtRef.current) {
-        announcedCalledAtRef.current = updated.called_at;
-        const counterName = counters.find((c) => c.id === updated.counter_id)?.name || `Loket ${updated.counter_id}`;
-        playQueueAnnouncement(updated.queue_number, updated.customer_name, counterName);
-      }
     }
-  }, [queues, activeTicket, counters]);
+  }, [queues, activeTicket]);
 
   const fetchCounters = async () => {
     try {
@@ -106,9 +91,11 @@ const TakeQueue = () => {
   };
 
   const clearActiveTicket = () => {
+    if (activeTicket) {
+      localStorage.removeItem(`queuego_announced_${activeTicket.id}`);
+    }
     setActiveTicket(null);
     localStorage.removeItem('queuego_active_ticket');
-    announcedCalledAtRef.current = null;
   };
 
   // ==========================================
@@ -142,7 +129,6 @@ const TakeQueue = () => {
       };
       setActiveTicket(ticketWithCounter);
       localStorage.setItem('queuego_active_ticket', JSON.stringify(ticketWithCounter));
-      announcedCalledAtRef.current = newQueue.called_at || null;
 
       setIsModalOpen(true);
       setCustomerName('');
