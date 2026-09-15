@@ -29,6 +29,7 @@ const TakeQueue = () => {
   const [counters, setCounters] = useState([]);
   const [selectedCounter, setSelectedCounter] = useState(null);
   const [customerName, setCustomerName] = useState('');
+  const [nameError, setNameError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTicket, setActiveTicket] = useState(null);
   const [queues, setQueues] = useState([]);
@@ -101,6 +102,31 @@ const TakeQueue = () => {
   // ==========================================
   // Take queue
   // ==========================================
+  // Name validation: only letters, spaces, dots, hyphens allowed
+  const validateName = (name) => {
+    if (!name.trim()) return ''; // optional field, empty is fine
+    const nameRegex = /^[a-zA-ZÀ-ÿ\s.'\-]+$/;
+    if (!nameRegex.test(name)) {
+      return 'Nama hanya boleh berisi huruf, spasi, dan titik. Angka dan simbol tidak diperbolehkan.';
+    }
+    if (name.trim().length < 2) {
+      return 'Nama minimal 2 karakter.';
+    }
+    return '';
+  };
+
+  const handleNameChange = (e) => {
+    const value = e.target.value;
+    // Block input of numbers and special characters in real-time
+    const filtered = value.replace(/[^a-zA-ZÀ-ÿ\s.'\-]/g, '');
+    setCustomerName(filtered);
+    if (filtered !== value) {
+      setNameError('Angka dan simbol tidak diperbolehkan. Hanya huruf, spasi, dan titik.');
+    } else {
+      setNameError(validateName(filtered));
+    }
+  };
+
   const handleTakeQueue = async (e) => {
     e.preventDefault();
 
@@ -111,6 +137,13 @@ const TakeQueue = () => {
 
     if (!selectedCounter) {
       alert('Silakan pilih loket terlebih dahulu.');
+      return;
+    }
+
+    // Validate name before submit
+    const error = validateName(customerName);
+    if (error) {
+      setNameError(error);
       return;
     }
 
@@ -381,13 +414,21 @@ const TakeQueue = () => {
               </div>
 
               <div className="max-w-md mx-auto space-y-6 pt-6 border-t border-slate-100">
-                <TextInput
-                  label="Nama Pelanggan (Opsional)"
-                  id="customer_name"
-                  placeholder="Masukkan nama Anda (contoh: Fachri)..."
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                />
+                <div>
+                  <TextInput
+                    label="Nama Pelanggan (Opsional)"
+                    id="customer_name"
+                    placeholder="Masukkan nama Anda (contoh: Fachri)..."
+                    value={customerName}
+                    onChange={handleNameChange}
+                  />
+                  {nameError && (
+                    <div className="flex items-center gap-1.5 mt-2 text-rose-600 text-xs font-semibold">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{nameError}</span>
+                    </div>
+                  )}
+                </div>
                 <Button
                   type="submit"
                   size="lg"
